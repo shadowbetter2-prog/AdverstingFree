@@ -578,6 +578,34 @@
   }
 
   loadChannels();
+
+  // --- YARATIB OLINGAN YORDAMCHI STORAGE FUNKSIYALARI ---
+const Storage = {
+  async getKeys() {
+    if (tg && tg.CloudStorage) {
+      return new Promise((resolve) => tg.CloudStorage.getKeys((err, keys) => resolve(keys || [])));
+    }
+    return Object.keys(localStorage);
+  },
+  async getItem(key) {
+    if (tg && tg.CloudStorage) {
+      return new Promise((resolve) => tg.CloudStorage.getItem(key, (err, val) => resolve(val)));
+    }
+    return localStorage.getItem(key);
+  },
+  async setItem(key, val) {
+    if (tg && tg.CloudStorage) {
+      return new Promise((resolve) => tg.CloudStorage.setItem(key, val, (err, success) => resolve(success)));
+    }
+    return localStorage.setItem(key, val);
+  },
+  async removeItem(key) {
+    if (tg && tg.CloudStorage) {
+      return new Promise((resolve) => tg.CloudStorage.removeItem(key, (err, success) => resolve(success)));
+    }
+    return localStorage.removeItem(key);
+  }
+};
 })();
 </script>
 </body>
