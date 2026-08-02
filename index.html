@@ -69,7 +69,7 @@
   .search-wrap input:focus{ border-color:var(--phosphor-dim); }
   .search-wrap input::placeholder{ color:var(--static); }
 
-  /* Preset dial buttons */
+  /* Chips */
   .chips{ display:flex; gap:6px; overflow-x:auto; margin-top:14px; padding-bottom:2px; scrollbar-width:none; }
   .chips::-webkit-scrollbar{ display:none; }
   .chip{
@@ -124,13 +124,12 @@
   .channel-card:not(.pinned) .ch-join{ width:auto; display:inline-block; }
   .ch-join:active{ background:var(--phosphor); color:#052014; }
 
-  .empty-state{ text-align:center; color:var(--static); font-size:13px; font-weight:600; padding:44px 10px; line-height:1.8; font-family:'Space Mono',monospace; font-size:11.5px; }
+  .empty-state{ text-align:center; color:var(--static); font-size:11.5px; font-weight:600; padding:44px 10px; line-height:1.8; font-family:'Space Mono',monospace; }
 
-  /* Add channel form */
+  /* Add screen */
   #add-screen{ display:none; }
   #add-screen.active{ display:block; }
   .form-label{ font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; color:var(--phosphor-dim); margin:16px 0 6px; text-transform:uppercase; letter-spacing:1.5px; }
-  .form-label:first-child{ margin-top:0; }
   .form-input, .form-textarea, .form-select{
     width:100%; background:var(--panel); border:1px solid var(--line); border-radius:8px;
     padding:12px 14px; color:var(--cream); font-family:'Inter',sans-serif; font-size:14px; font-weight:500; outline:none;
@@ -145,7 +144,6 @@
     border-radius:9px; font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:17px; letter-spacing:1px; cursor:pointer;
   }
   .submit-btn.ghost{ background:transparent; border:1px solid var(--line); color:var(--cream); }
-  .submit-btn:disabled{ opacity:0.4; }
 
   .feature-upsell{
     margin-top:18px; background:linear-gradient(160deg, rgba(255,174,66,0.1), var(--panel) 60%);
@@ -172,7 +170,7 @@
     position:fixed; bottom:0; left:0; right:0; background:rgba(12,18,16,0.94); backdrop-filter:blur(14px);
     border-top:1px solid var(--line); display:flex; justify-content:center;
     padding:10px env(safe-area-inset-bottom,0) calc(10px + env(safe-area-inset-bottom,0));
-    z-index: 100;
+    z-index:100;
   }
   .bottom-nav-inner{ max-width:520px; width:100%; display:flex; padding:0 16px; gap:8px; }
   .nav-btn{
@@ -194,7 +192,7 @@
   }
   .admin-row .arow-body{ flex:1; min-width:0; }
   .admin-row .arow-name{ font-weight:700; font-size:13.5px; }
-  .admin-row .arow-meta{ font-family:'Space Mono',monospace; font-size:10.5px; color:var(--static); margin-top:2px; word-break: break-all; }
+  .admin-row .arow-meta{ font-family:'Space Mono',monospace; font-size:10.5px; color:var(--static); margin-top:2px; word-break:break-all; }
   .admin-toggle{
     background:var(--line); color:var(--cream); border:none; padding:8px 12px; border-radius:7px;
     font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; cursor:pointer; flex-shrink:0;
@@ -241,7 +239,7 @@
     </div>
   </div>
 
-  <!-- ADD CHANNEL SCREEN -->
+  <!-- ADD SCREEN -->
   <div id="add-screen">
     <header>
       <div class="tv-frame">
@@ -310,52 +308,43 @@
 (function(){
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if(tg){ 
-    try { tg.ready(); tg.expand(); } catch(e){}
+    try{ tg.ready(); tg.expand(); }catch(e){}
   }
 
-  // ====== HAR QANDAY MUHITDA XATOSIZ ISHLAYDIGAN STORAGE ======
+  // ====== JSONBIN BULUTLI BAZASI ======
+  const BIN_ID = '6a6fa9aeda38895dfeb0cf59';
+  const API_KEY = 'YOUR_SECRET_KEY'; // API Keys bo'limidagi X-Master-Key ni qo'ying
+  const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
   const Storage = {
-    async getKeys() {
-      if (tg && tg.initData && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
-        return new Promise((resolve) => {
-          tg.CloudStorage.getKeys((err, keys) => {
-            if (err || !keys) resolve(Object.keys(localStorage));
-            else resolve(keys);
-          });
+    async getAll() {
+      try {
+        const res = await fetch(`${JSONBIN_URL}/latest`, {
+          headers: { 'X-Master-Key': API_KEY }
         });
+        const data = await res.json();
+        return (data.record && data.record.channels) ? data.record.channels : [];
+      } catch(e) {
+        console.error("Bazadan o'qishda xatolik:", e);
+        return [];
       }
-      return Object.keys(localStorage);
     },
 
-    async getItem(key) {
-      if (tg && tg.initData && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
-        return new Promise((resolve) => {
-          tg.CloudStorage.getItem(key, (err, val) => {
-            if (err || val === null) resolve(localStorage.getItem(key));
-            else resolve(val);
-          });
+    async saveAll(channelsList) {
+      try {
+        await fetch(JSONBIN_URL, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify({ channels: channelsList })
         });
+        return true;
+      } catch(e) {
+        console.error("Bazaga saqlashda xatolik:", e);
+        return false;
       }
-      return localStorage.getItem(key);
-    },
-
-    async setItem(key, val) {
-      // Birinchi har doim localStorage'ga saqlaymiz
-      try { localStorage.setItem(key, val); } catch(e) {}
-
-      // Agar rostdan ham Telegram WebApp ichida bo'lsak, CloudStorage'ga ham yozamiz
-      if (tg && tg.initData && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
-        try { tg.CloudStorage.setItem(key, val); } catch(e) {}
-      }
-      return true;
-    },
-
-    async removeItem(key) {
-      try { localStorage.removeItem(key); } catch(e) {}
-      if (tg && tg.initData && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
-        try { tg.CloudStorage.removeItem(key); } catch(e) {}
-      }
-      return true;
     }
   };
 
@@ -377,9 +366,9 @@
   let searchTerm = '';
   let allChannels = [];
 
-  // Chips rendering
+  // Chips
   const chipsEl = $('chips');
-  if(chipsEl) {
+  if(chipsEl){
     chipsEl.innerHTML = '';
     const allChip = document.createElement('div');
     allChip.className = 'chip active';
@@ -403,9 +392,9 @@
     });
   }
 
-  // Select category
+  // Select
   const catSelect = $('f-category');
-  if(catSelect) {
+  if(catSelect){
     catSelect.innerHTML = '';
     CATEGORIES.forEach(c=>{
       const opt = document.createElement('option');
@@ -418,9 +407,7 @@
     const c = CATEGORIES.find(x=>x.id===id);
     return c ? c.label : id;
   }
-  function chNum(i){
-    return 'CH ' + String(i+1).padStart(2,'0');
-  }
+  function chNum(i){ return 'CH ' + String(i+1).padStart(2,'0'); }
   function escapeHtml(str){
     const d = document.createElement('div');
     d.textContent = str || '';
@@ -435,9 +422,8 @@
   }
 
   // Search
-  const searchInput = $('search-input');
-  if(searchInput){
-    searchInput.addEventListener('input', (e)=>{
+  if($('search-input')){
+    $('search-input').addEventListener('input', (e)=>{
       searchTerm = e.target.value.trim().toLowerCase();
       render();
     });
@@ -445,26 +431,8 @@
 
   // Load channels
   async function loadChannels(){
-    try{
-      const keys = await Storage.getKeys();
-      const channelKeys = keys.filter(k => k && k.startsWith('channel:'));
-      const items = [];
-      for(const k of channelKeys){
-        try{
-          const val = await Storage.getItem(k);
-          if(val){
-            const parsed = JSON.parse(val);
-            parsed._key = k;
-            items.push(parsed);
-          }
-        }catch(e){ /* skip */ }
-      }
-      items.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
-      allChannels = items;
-    }catch(e){
-      console.error(e);
-      allChannels = [];
-    }
+    allChannels = await Storage.getAll();
+    allChannels.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
     render();
   }
 
@@ -525,7 +493,7 @@
     }
   }
 
-  // Add form
+  // Add channel
   const descField = $('f-desc');
   if(descField){
     descField.addEventListener('input', ()=>{
@@ -547,18 +515,29 @@
         return;
       }
 
-      const key = 'channel:' + Date.now() + ':' + Math.random().toString(36).slice(2,7);
-      const data = { name, link, category, desc, featured:false, createdAt: Date.now() };
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saqlanmoqda...';
 
-      try{
-        await Storage.setItem(key, JSON.stringify(data));
+      const newChannel = { 
+        id: 'ch_' + Date.now(), 
+        name, link, category, desc, 
+        featured: false, 
+        createdAt: Date.now() 
+      };
+
+      allChannels.unshift(newChannel);
+      const success = await Storage.saveAll(allChannels);
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Katalogga qo\'shish';
+
+      if(success){
         if(tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         if($('add-form')) $('add-form').style.display = 'none';
         if($('add-success')) $('add-success').style.display = 'block';
-        await loadChannels();
-      }catch(e){
-        console.error(e);
-        alert('Xatolik yuz berdi: ' + e.message);
+        render();
+      } else {
+        alert('Bazaga saqlashda xatolik yuz berdi. Qayta urinib ko\'ring.');
       }
     });
   }
@@ -577,11 +556,8 @@
   if($('fu-btn')){
     $('fu-btn').addEventListener('click', ()=>{
       const url = 'https://t.me/' + ADMIN_USERNAME.replace('@','');
-      if(tg && tg.openTelegramLink){
-        tg.openTelegramLink(url);
-      } else {
-        window.open(url, '_blank');
-      }
+      if(tg && tg.openTelegramLink){ tg.openTelegramLink(url); } 
+      else { window.open(url, '_blank'); }
     });
   }
 
@@ -598,7 +574,7 @@
 
       const screen = btn.dataset.screen;
       if(screen === 'catalog' && $('catalog-screen')){ $('catalog-screen').style.display = 'block'; }
-      else if(screen === 'add' && $('add-screen')){ $('add-screen').classList.add('active'); }
+      else if(screen === 'add' && $('add-screen')){ $('add-screen').classList.active ? null : $('add-screen').classList.add('active'); }
       else if(screen === 'admin' && $('admin-gate')){ $('admin-gate').classList.add('active'); }
     });
   });
@@ -633,31 +609,34 @@
             <div class="arow-name">${escapeHtml(c.name)}</div>
             <div class="arow-meta">${catLabel(c.category)} · ${escapeHtml(c.link)}</div>
           </div>
-          <button class="admin-toggle ${isFeatured?'on':''}" data-key="${c._key}">${isFeatured?'★ On Air':'On Air qil'}</button>
-          <button class="admin-del" data-key="${c._key}">O'chirish</button>
+          <button class="admin-toggle ${isFeatured?'on':''}" data-id="${c.id}">${isFeatured?'★ On Air':'On Air qil'}</button>
+          <button class="admin-del" data-id="${c.id}">O'chirish</button>
         </div>
       `;
     }).join('');
 
     list.querySelectorAll('.admin-toggle').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        const key = btn.dataset.key;
-        const ch = allChannels.find(c=>c._key===key);
+        const id = btn.dataset.id;
+        const ch = allChannels.find(c=>c.id===id);
         if(!ch) return;
         const nowFeatured = !(ch.featured && (!ch.featuredUntil || ch.featuredUntil > Date.now()));
         ch.featured = nowFeatured;
         ch.featuredUntil = nowFeatured ? (Date.now() + 30*24*60*60*1000) : null;
-        await Storage.setItem(key, JSON.stringify({name:ch.name, link:ch.link, category:ch.category, desc:ch.desc, featured:ch.featured, featuredUntil:ch.featuredUntil, createdAt:ch.createdAt}));
-        loadChannels().then(renderAdmin);
+        await Storage.saveAll(allChannels);
+        renderAdmin();
+        render();
       });
     });
 
     list.querySelectorAll('.admin-del').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        const key = btn.dataset.key;
+        const id = btn.dataset.id;
         if(!confirm('Bu kanalni o\'chirmoqchimisiz?')) return;
-        await Storage.removeItem(key);
-        loadChannels().then(renderAdmin);
+        allChannels = allChannels.filter(c=>c.id!==id);
+        await Storage.saveAll(allChannels);
+        renderAdmin();
+        render();
       });
     });
   }
