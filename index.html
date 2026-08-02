@@ -604,6 +604,29 @@ const Storage = {
       return new Promise((resolve) => tg.CloudStorage.removeItem(key, (err, success) => resolve(success)));
     }
     return localStorage.removeItem(key);
+
+    async function loadChannels(){
+  try{
+    const keys = await Storage.getKeys();
+    const channelKeys = keys.filter(k => k.startsWith('channel:'));
+    const items = [];
+    for(const k of channelKeys){
+      try{
+        const val = await Storage.getItem(k);
+        if(val){
+          const parsed = JSON.parse(val);
+          parsed._key = k;
+          items.push(parsed);
+        }
+      }catch(e){ /* skip */ }
+    }
+    items.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+    allChannels = items;
+  }catch(e){
+    allChannels = [];
+  }
+  render();
+}
   }
 };
 })();
