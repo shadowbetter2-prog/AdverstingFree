@@ -314,31 +314,48 @@
     tg.expand(); 
   }
 
-  // ====== STORAGE WRAPPER (CloudStorage & LocalStorage) ======
+  // ====== ISHONCHLI XATOSIZ STORAGE WRAPPER ======
   const Storage = {
     async getKeys() {
-      if (tg && tg.CloudStorage) {
-        return new Promise((resolve) => tg.CloudStorage.getKeys((err, keys) => resolve(keys || [])));
-      }
+      try {
+        if (tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
+          return await new Promise((resolve) => {
+            tg.CloudStorage.getKeys((err, keys) => resolve(err ? Object.keys(localStorage) : (keys || [])));
+          });
+        }
+      } catch(e) {}
       return Object.keys(localStorage);
     },
+
     async getItem(key) {
-      if (tg && tg.CloudStorage) {
-        return new Promise((resolve) => tg.CloudStorage.getItem(key, (err, val) => resolve(val)));
-      }
+      try {
+        if (tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
+          return await new Promise((resolve) => {
+            tg.CloudStorage.getItem(key, (err, val) => resolve(err ? localStorage.getItem(key) : val));
+          });
+        }
+      } catch(e) {}
       return localStorage.getItem(key);
     },
+
     async setItem(key, val) {
-      if (tg && tg.CloudStorage) {
-        return new Promise((resolve) => tg.CloudStorage.setItem(key, val, (err, success) => resolve(success)));
-      }
-      return localStorage.setItem(key, val);
+      try { localStorage.setItem(key, val); } catch(e) {}
+      try {
+        if (tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
+          tg.CloudStorage.setItem(key, val);
+        }
+      } catch(e) {}
+      return true;
     },
+
     async removeItem(key) {
-      if (tg && tg.CloudStorage) {
-        return new Promise((resolve) => tg.CloudStorage.removeItem(key, (err, success) => resolve(success)));
-      }
-      return localStorage.removeItem(key);
+      try { localStorage.removeItem(key); } catch(e) {}
+      try {
+        if (tg && tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
+          tg.CloudStorage.removeItem(key);
+        }
+      } catch(e) {}
+      return true;
     }
   };
 
@@ -514,14 +531,16 @@
 
     const key = 'channel:' + Date.now() + ':' + Math.random().toString(36).slice(2,7);
     const data = { name, link, category, desc, featured:false, createdAt: Date.now() };
+
     try{
       await Storage.setItem(key, JSON.stringify(data));
       if(tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       $('add-form').style.display = 'none';
       $('add-success').style.display = 'block';
-      loadChannels();
+      await loadChannels();
     }catch(e){
-      alert('Xatolik yuz berdi, qayta urinib ko\'ring.');
+      console.error(e);
+      alert('Xatolik: ' + e.message);
     }
   });
 
