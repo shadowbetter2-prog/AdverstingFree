@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>QaysiKanal</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --screen:#0C1210;
+    --panel:#151F1A;
+    --panel-hi:#1B2620;
+    --line:#28372F;
+    --phosphor:#7CFFB2;
+    --phosphor-dim:#3E8F68;
+    --amber:#FFAE42;
+    --live:#FF4438;
+    --cream:#EFE9D8;
+    --static:#5D6E64;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; background:var(--screen); color:var(--cream); font-family:'Inter',sans-serif; }
+
+  body{
+    background-image:
+      radial-gradient(ellipse at 50% -10%, rgba(124,255,178,0.07), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(124,255,178,0.02) 0px, rgba(124,255,178,0.02) 1px, transparent 1px, transparent 3px);
+  }
+
+  #app{ max-width:520px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column; padding:env(safe-area-inset-top,0) 16px 92px; }
+
+  .disp{ font-family:'Bebas Neue',sans-serif; letter-spacing:0.5px; }
+  .mono{ font-family:'Space Mono',monospace; }
+
+  /* ---------- Header : TV set-top readout ---------- */
+  header{ padding:18px 0 14px; }
+
+  .tv-frame{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+    position:relative; overflow:hidden;
+  }
+  .tv-frame::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg, rgba(124,255,178,0.05), transparent 40%);
+  }
+  .tv-top-row{ display:flex; align-items:center; justify-content:space-between; }
+  .tv-tag{
+    display:flex; align-items:center; gap:6px; font-family:'Space Mono',monospace; font-size:10.5px;
+    color:var(--phosphor); letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .tv-tag .dot{ width:6px; height:6px; border-radius:50%; background:var(--phosphor); box-shadow:0 0 8px var(--phosphor); animation:blink 2s infinite; }
+  @keyframes blink{ 0%,100%{ opacity:1;} 50%{ opacity:0.3;} }
+  .tv-count{ font-family:'Space Mono',monospace; font-size:10.5px; color:var(--static); }
+
+  .brand{ font-size:44px; line-height:0.95; margin-top:8px; color:var(--cream); text-shadow:0 0 24px rgba(124,255,178,0.15); }
+  .brand .glow{ color:var(--phosphor); }
+
+  .search-wrap{ margin-top:14px; position:relative; }
+  .search-wrap::before{
+    content:'CH ►'; position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    font-family:'Space Mono',monospace; font-size:11px; color:var(--phosphor-dim); font-weight:700;
+  }
+  .search-wrap input{
+    width:100%; background:var(--screen); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px 12px 52px; color:var(--cream); font-family:'Space Mono',monospace; font-size:13px; outline:none;
+  }
+  .search-wrap input:focus{ border-color:var(--phosphor-dim); }
+  .search-wrap input::placeholder{ color:var(--static); }
+
+  /* Preset dial buttons */
+  .chips{ display:flex; gap:6px; overflow-x:auto; margin-top:14px; padding-bottom:2px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex-shrink:0; background:var(--screen); border:1px solid var(--line); color:var(--static);
+    padding:7px 13px; border-radius:6px; font-family:'Space Mono',monospace; font-size:11.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap;
+  }
+  .chip.active{ background:var(--phosphor); border-color:var(--phosphor); color:#052014; }
+
+  /* ---------- Sections ---------- */
+  .section{ margin-top:24px; }
+  .section-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .section-title{ font-family:'Space Mono',monospace; font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--static); }
+  .section-title.onair{ color:var(--live); display:flex; align-items:center; gap:6px; }
+  .section-title.onair::before{ content:''; width:7px; height:7px; border-radius:50%; background:var(--live); box-shadow:0 0 8px var(--live); animation:blink 1.6s infinite; }
+  .section-count{ font-family:'Space Mono',monospace; font-size:11px; color:var(--static); }
+
+  .featured-scroll{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .featured-scroll::-webkit-scrollbar{ display:none; }
+
+  /* ---------- Channel cards ---------- */
+  .ch-num{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:11px; color:var(--phosphor);
+    background:rgba(124,255,178,0.1); border:1px solid var(--phosphor-dim); border-radius:5px;
+    padding:3px 7px; letter-spacing:0.5px; flex-shrink:0; display:inline-block;
+  }
+
+  .channel-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px;
+    margin-bottom:9px; position:relative;
+  }
+  .channel-card.pinned{
+    min-width:216px; flex-shrink:0; margin-bottom:0;
+    border-color:rgba(255,174,66,0.45); background:linear-gradient(165deg, rgba(255,174,66,0.09), var(--panel) 55%);
+  }
+  .ch-top-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .badge-live{ font-family:'Space Mono',monospace; font-size:9.5px; font-weight:700; color:var(--amber); letter-spacing:1px; }
+
+  .ch-name{ font-weight:700; font-size:15px; margin-top:9px; color:var(--cream); }
+  .ch-desc{ font-size:12.5px; color:#A9B3AC; margin-top:5px; line-height:1.5; }
+  .channel-card.pinned .ch-desc{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+  .ch-cat-tag{
+    display:inline-block; margin-top:9px; font-family:'Space Mono',monospace; font-size:10px; font-weight:700; color:var(--phosphor);
+    background:rgba(124,255,178,0.08); border:1px solid var(--phosphor-dim); padding:3px 8px; border-radius:5px;
+  }
+  .ch-join{
+    margin-top:11px; background:transparent; color:var(--phosphor); border:1px solid var(--phosphor-dim); padding:8px 14px;
+    border-radius:7px; font-weight:700; font-size:12px; cursor:pointer; font-family:'Space Mono',monospace;
+    display:block; width:100%;
+  }
+  .channel-card:not(.pinned) .ch-join{ width:auto; }
+  .ch-join:active{ background:var(--phosphor); color:#052014; }
+
+  .empty-state{ text-align:center; color:var(--static); font-size:13px; font-weight:600; padding:44px 10px; line-height:1.8; font-family:'Space Mono',monospace; font-size:11.5px; }
+
+  /* ---------- Add channel form ---------- */
+  #add-screen{ display:none; }
+  #add-screen.active{ display:block; }
+  .form-label{ font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; color:var(--phosphor-dim); margin:16px 0 6px; text-transform:uppercase; letter-spacing:1.5px; }
+  .form-label:first-child{ margin-top:0; }
+  .form-input, .form-textarea, .form-select{
+    width:100%; background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; color:var(--cream); font-family:'Inter',sans-serif; font-size:14px; font-weight:500; outline:none;
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus{ border-color:var(--phosphor-dim); }
+  .form-textarea{ resize:none; height:80px; }
+  .char-count{ text-align:right; font-family:'Space Mono',monospace; font-size:10.5px; color:var(--static); margin-top:4px; }
+  .form-select{ appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%235D6E64' d='M0 0h12L6 8z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
+
+  .submit-btn{
+    width:100%; margin-top:22px; background:var(--phosphor); color:#052014; border:none; padding:14px;
+    border-radius:9px; font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:17px; letter-spacing:1px; cursor:pointer;
+  }
+  .submit-btn.ghost{ background:transparent; border:1px solid var(--line); color:var(--cream); }
+  .submit-btn:disabled{ opacity:0.4; }
+
+  .feature-upsell{
+    margin-top:18px; background:linear-gradient(160deg, rgba(255,174,66,0.1), var(--panel) 60%);
+    border:1px solid rgba(255,174,66,0.35); border-radius:12px; padding:16px;
+  }
+  .feature-upsell .fu-title{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:12.5px; color:var(--amber);
+    display:flex; align-items:center; gap:6px; letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .feature-upsell .fu-text{ font-size:12.5px; color:#C4C9BE; margin-top:8px; line-height:1.6; }
+  .fu-price{ font-family:'Space Mono',monospace; font-size:11px; color:var(--static); margin-top:10px; }
+  .fu-btn{
+    margin-top:10px; width:100%; background:var(--amber); color:#2b1e00; border:none; padding:11px;
+    border-radius:8px; font-weight:800; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+
+  .success-note{
+    text-align:center; padding:32px 16px; color:var(--phosphor); font-weight:700; font-size:15px; line-height:1.7;
+    font-family:'Space Mono',monospace; font-size:12.5px;
+  }
+
+  /* ---------- Bottom nav : remote control ---------- */
+  .bottom-nav{
+    position:fixed; bottom:0; left:0; right:0; background:rgba(12,18,16,0.94); backdrop-filter:blur(14px);
+    border-top:1px solid var(--line); display:flex; justify-content:center;
+    padding:10px env(safe-area-inset-bottom,0) calc(10px + env(safe-area-inset-bottom,0));
+  }
+  .bottom-nav-inner{ max-width:520px; width:100%; display:flex; padding:0 16px; gap:8px; }
+  .nav-btn{
+    flex:1; background:var(--panel); border:1px solid var(--line); color:var(--static); padding:9px 4px;
+    font-family:'Space Mono',monospace; font-weight:700; font-size:10.5px; cursor:pointer; border-radius:9px;
+    display:flex; flex-direction:column; align-items:center; gap:3px; letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .nav-btn .icon{ font-size:17px; }
+  .nav-btn.active{ color:var(--phosphor); border-color:var(--phosphor-dim); background:rgba(124,255,178,0.06); }
+
+  /* ---------- Admin ---------- */
+  #admin-gate{ display:none; text-align:center; padding:60px 20px; }
+  #admin-gate.active{ display:block; }
+  #admin-panel{ display:none; }
+  #admin-panel.active{ display:block; }
+  .admin-row{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:8px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .admin-row .arow-body{ flex:1; min-width:0; }
+  .admin-row .arow-name{ font-weight:700; font-size:13.5px; }
+  .admin-row .arow-meta{ font-family:'Space Mono',monospace; font-size:10.5px; color:var(--static); margin-top:2px; }
+  .admin-toggle{
+    background:var(--line); color:var(--cream); border:none; padding:8px 12px; border-radius:7px;
+    font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; cursor:pointer; flex-shrink:0;
+  }
+  .admin-toggle.on{ background:var(--amber); color:#2b1e00; }
+  .admin-del{
+    background:rgba(255,68,56,0.12); color:var(--live); border:none; padding:8px 10px; border-radius:7px;
+    font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; cursor:pointer; flex-shrink:0;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- CATALOG SCREEN -->
+  <div id="catalog-screen">
+    <header>
+      <div class="tv-frame">
+        <div class="tv-top-row">
+          <div class="tv-tag"><span class="dot"></span>SIGNAL BOR</div>
+          <div class="tv-count" id="tv-count">00 KANAL</div>
+        </div>
+        <div class="brand disp">Qaysi<span class="glow">Kanal</span></div>
+        <div class="search-wrap">
+          <input id="search-input" placeholder="qidiruv...">
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+    </header>
+
+    <div class="section" id="featured-section" style="display:none;">
+      <div class="section-head">
+        <div class="section-title onair">On Air</div>
+      </div>
+      <div class="featured-scroll" id="featured-list"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Barcha kanallar</div>
+        <div class="section-count" id="regular-count"></div>
+      </div>
+      <div id="regular-list"></div>
+    </div>
+  </div>
+
+  <!-- ADD CHANNEL SCREEN -->
+  <div id="add-screen">
+    <header>
+      <div class="tv-frame">
+        <div class="tv-tag"><span class="dot"></span>YANGI KANAL</div>
+        <div class="brand disp" style="font-size:36px;">Efirga <span class="glow">chiqish</span></div>
+      </div>
+    </header>
+
+    <div id="add-form">
+      <div class="form-label">Kanal nomi</div>
+      <input class="form-input" id="f-name" placeholder="Masalan: Kunlik Yangiliklar" maxlength="40">
+
+      <div class="form-label">Username yoki havola</div>
+      <input class="form-input" id="f-link" placeholder="@kanal_username">
+
+      <div class="form-label">Kategoriya</div>
+      <select class="form-select" id="f-category"></select>
+
+      <div class="form-label">Qisqacha tavsif</div>
+      <textarea class="form-textarea" id="f-desc" maxlength="120" placeholder="Kanalingiz nima haqida?"></textarea>
+      <div class="char-count"><span id="desc-count">0</span>/120</div>
+
+      <button class="submit-btn" id="submit-btn">Katalogga qo'shish</button>
+    </div>
+
+    <div id="add-success" style="display:none;">
+      <div class="success-note">✅ KANAL EFIRGA CHIQDI<br>Endi u ro'yxatda ko'rinadi.</div>
+      <div class="feature-upsell">
+        <div class="fu-title">★ On Air qatoriga chiqing</div>
+        <div class="fu-text">Tavsiya etilgan kanallar katalog tepasida alohida ko'rinadi va ko'proq odam ko'radi.</div>
+        <div class="fu-price">30 kun uchun — narxni admin bilan kelishing</div>
+        <button class="fu-btn" id="fu-btn">Admin bilan bog'lanish</button>
+      </div>
+      <button class="submit-btn ghost" id="add-another-btn" style="margin-top:12px;">Yana kanal qo'shish</button>
+    </div>
+  </div>
+
+  <!-- ADMIN GATE -->
+  <div id="admin-gate">
+    <div class="section-title" style="margin-bottom:10px;">Cheklangan bo'lim</div>
+    <input class="form-input" id="admin-pass" type="password" placeholder="Admin parolini kiriting" style="max-width:260px; margin:0 auto;">
+    <button class="submit-btn" id="admin-enter-btn" style="max-width:260px; margin:14px auto 0;">Kirish</button>
+  </div>
+
+  <div id="admin-panel">
+    <header>
+      <div class="tv-frame">
+        <div class="tv-tag"><span class="dot"></span>BOSHQARUV</div>
+        <div class="brand disp" style="font-size:36px;">Admin <span class="glow">panel</span></div>
+      </div>
+    </header>
+    <div id="admin-list"></div>
+  </div>
+
+</div>
+
+<div class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="nav-btn active" data-screen="catalog"><span class="icon">📡</span>Katalog</button>
+    <button class="nav-btn" data-screen="add"><span class="icon">➕</span>Qo'shish</button>
+    <button class="nav-btn" data-screen="admin"><span class="icon">⚙️</span>Admin</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if(tg){ tg.ready(); tg.expand(); }
+
+  // ====== CONFIG — bularni o'zingizga moslab o'zgartiring ======
+  const ADMIN_USERNAME = '@azamatoww';       // admin bilan bog'lanish uchun username
+  const ADMIN_PASSWORD = 'qwerking';         // admin panelga kirish paroli
+
+  // Ma'lumotlar bulutda (jsonbin.io) saqlanadi — https://jsonbin.io da bepul ro'yxatdan o'ting,
+  // yangi bin yarating (boshlang'ich qiymat: []) va quyidagi ikkita qatorni o'zingiznikiga almashtiring:
+  const JSONBIN_ID = '6a6fa9aeda38895dfeb0cf59'; // jsonbin.io — Bin ID
+  const JSONBIN_KEY = '$2a$10$2Y4Mhjj.dKp1nVjtnPg.nusCjx3eGaflUYJtxjjVF5D7MnNjkU60.'; // jsonbin.io — X-Master-Key
+  const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
+
+  async function dbLoad(){
+    const r = await fetch(JSONBIN_BASE + '/latest', { headers:{ 'X-Master-Key': JSONBIN_KEY } });
+    if(!r.ok) throw new Error('load failed');
+    const j = await r.json();
+    return Array.isArray(j.record.channels) ? j.record.channels : [];
+  }
+  async function dbSave(arr){
+    const r = await fetch(JSONBIN_BASE, {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json', 'X-Master-Key': JSONBIN_KEY },
+      body: JSON.stringify({ channels: arr })
+    });
+    if(!r.ok) throw new Error('save failed');
+  }
+  const CATEGORIES = [
+    {id:'music', label:'Musiqa'},
+    {id:'news', label:'Yangilik'},
+    {id:'games', label:'O\'yin'},
+    {id:'edu', label:'Ta\'lim'},
+    {id:'fun', label:'Kulgi'},
+    {id:'tech', label:'Texnologiya'},
+    {id:'other', label:'Boshqa'},
+  ];
+  // ================================================================
+
+  const $ = (id) => document.getElementById(id);
+  let activeCategory = 'all';
+  let searchTerm = '';
+  let allChannels = [];
+
+  // ---------- chips ----------
+  const chipsEl = $('chips');
+  const allChip = document.createElement('div');
+  allChip.className = 'chip active';
+  allChip.textContent = 'Barchasi';
+  allChip.dataset.cat = 'all';
+  chipsEl.appendChild(allChip);
+  CATEGORIES.forEach(c=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = c.label;
+    chip.dataset.cat = c.id;
+    chipsEl.appendChild(chip);
+  });
+  chipsEl.addEventListener('click', (e)=>{
+    const chip = e.target.closest('.chip');
+    if(!chip) return;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    activeCategory = chip.dataset.cat;
+    render();
+  });
+
+  // ---------- category select in form ----------
+  const catSelect = $('f-category');
+  CATEGORIES.forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.label;
+    catSelect.appendChild(opt);
+  });
+
+  function catLabel(id){
+    const c = CATEGORIES.find(x=>x.id===id);
+    return c ? c.label : id;
+  }
+  function chNum(i){
+    return 'CH ' + String(i+1).padStart(2,'0');
+  }
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+  function toLink(raw){
+    let v = (raw||'').trim();
+    if(v.startsWith('@')) return 'https://t.me/' + v.slice(1);
+    if(v.startsWith('http')) return v;
+    if(v) return 'https://t.me/' + v;
+    return '#';
+  }
+
+  // ---------- search ----------
+  $('search-input').addEventListener('input', (e)=>{
+    searchTerm = e.target.value.trim().toLowerCase();
+    render();
+  });
+
+  // ---------- load channels ----------
+  async function loadChannels(){
+    try{
+      const items = await dbLoad();
+      items.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+      allChannels = items;
+    }catch(e){
+      allChannels = [];
+    }
+    render();
+  }
+
+  function render(){
+    const featuredWrap = $('featured-section');
+    const featuredList = $('featured-list');
+    const regularList = $('regular-list');
+    const regularCount = $('regular-count');
+
+    $('tv-count').textContent = String(allChannels.length).padStart(2,'0') + ' KANAL';
+
+    let filtered = allChannels.filter(c=>{
+      if(activeCategory !== 'all' && c.category !== activeCategory) return false;
+      if(searchTerm && !(c.name||'').toLowerCase().includes(searchTerm) && !(c.desc||'').toLowerCase().includes(searchTerm)) return false;
+      return true;
+    });
+
+    const featured = filtered.filter(c=> c.featured && (!c.featuredUntil || c.featuredUntil > Date.now()));
+    const regular = filtered.filter(c=> !(c.featured && (!c.featuredUntil || c.featuredUntil > Date.now())));
+
+    if(featured.length){
+      featuredWrap.style.display = 'block';
+      featuredList.innerHTML = featured.map((c,i) => `
+        <div class="channel-card pinned">
+          <div class="ch-top-row">
+            <span class="ch-num">${chNum(i)}</span>
+            <span class="badge-live">★ ON AIR</span>
+          </div>
+          <div class="ch-name">${escapeHtml(c.name)}</div>
+          <div class="ch-desc">${escapeHtml(c.desc)}</div>
+          <span class="ch-cat-tag">${catLabel(c.category)}</span>
+          <button class="ch-join" onclick="window.open('${toLink(c.link)}','_blank')">Kanalga o'tish →</button>
+        </div>
+      `).join('');
+    } else {
+      featuredWrap.style.display = 'none';
+    }
+
+    regularCount.textContent = regular.length + ' ta';
+    if(regular.length === 0){
+      regularList.innerHTML = '<div class="empty-state">-- SIGNAL TOPILMADI --<br>Bu bo\'limda hali kanal yo\'q.<br>Birinchi bo\'lib qo\'shing.</div>';
+    } else {
+      regularList.innerHTML = regular.map((c,i) => `
+        <div class="channel-card">
+          <div class="ch-top-row">
+            <span class="ch-num">${chNum(i)}</span>
+          </div>
+          <div class="ch-name">${escapeHtml(c.name)}</div>
+          <div class="ch-desc">${escapeHtml(c.desc)}</div>
+          <span class="ch-cat-tag">${catLabel(c.category)}</span><br>
+          <button class="ch-join" onclick="window.open('${toLink(c.link)}','_blank')">Kanalga o'tish →</button>
+        </div>
+      `).join('');
+    }
+  }
+
+  // ---------- add channel form ----------
+  const descField = $('f-desc');
+  descField.addEventListener('input', ()=>{
+    $('desc-count').textContent = descField.value.length;
+  });
+
+  $('submit-btn').addEventListener('click', async ()=>{
+    const name = $('f-name').value.trim();
+    const link = $('f-link').value.trim();
+    const category = $('f-category').value;
+    const desc = descField.value.trim();
+
+    if(!name || !link || !desc){
+      if(tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      alert('Iltimos, barcha maydonlarni to\'ldiring.');
+      return;
+    }
+
+    const id = Date.now() + '-' + Math.random().toString(36).slice(2,7);
+    const data = { id, name, link, category, desc, featured:false, createdAt: Date.now() };
+    try{
+      const current = await dbLoad();
+      current.push(data);
+      await dbSave(current);
+      $('add-form').style.display = 'none';
+      $('add-success').style.display = 'block';
+      loadChannels();
+    }catch(e){
+      alert('Xatolik yuz berdi, qayta urinib ko\'ring.');
+    }
+  });
+
+  $('add-another-btn').addEventListener('click', ()=>{
+    $('f-name').value=''; $('f-link').value=''; descField.value=''; $('desc-count').textContent='0';
+    $('add-success').style.display = 'none';
+    $('add-form').style.display = 'block';
+  });
+
+  $('fu-btn').addEventListener('click', ()=>{
+    if(tg && tg.openTelegramLink){
+      tg.openTelegramLink('https://t.me/' + ADMIN_USERNAME.replace('@',''));
+    } else {
+      window.open('https://t.me/' + ADMIN_USERNAME.replace('@',''), '_blank');
+    }
+  });
+
+  // ---------- bottom nav ----------
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      $('catalog-screen').style.display = 'none';
+      $('add-screen').classList.remove('active');
+      $('admin-gate').classList.remove('active');
+      $('admin-panel').classList.remove('active');
+
+      const screen = btn.dataset.screen;
+      if(screen === 'catalog'){ $('catalog-screen').style.display = 'block'; }
+      else if(screen === 'add'){ $('add-screen').classList.add('active'); }
+      else if(screen === 'admin'){ $('admin-gate').classList.add('active'); }
+    });
+  });
+
+  // ---------- admin ----------
+  $('admin-enter-btn').addEventListener('click', ()=>{
+    if($('admin-pass').value === ADMIN_PASSWORD){
+      $('admin-gate').classList.remove('active');
+      $('admin-panel').classList.add('active');
+      renderAdmin();
+    } else {
+      alert('Parol noto\'g\'ri.');
+    }
+  });
+
+  function renderAdmin(){
+    const list = $('admin-list');
+    if(allChannels.length === 0){
+      list.innerHTML = '<div class="empty-state">Hali kanal qo\'shilmagan.</div>';
+      return;
+    }
+    list.innerHTML = allChannels.map(c => {
+      const isFeatured = c.featured && (!c.featuredUntil || c.featuredUntil > Date.now());
+      return `
+        <div class="admin-row">
+          <div class="arow-body">
+            <div class="arow-name">${escapeHtml(c.name)}</div>
+            <div class="arow-meta">${catLabel(c.category)} · ${escapeHtml(c.link)}</div>
+          </div>
+          <button class="admin-toggle ${isFeatured?'on':''}" data-key="${c.id}">${isFeatured?'★ On Air':'On Air qil'}</button>
+          <button class="admin-del" data-key="${c.id}">O'chirish</button>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('.admin-toggle').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.key;
+        try{
+          const current = await dbLoad();
+          const ch = current.find(c=>c.id===id);
+          if(!ch) return;
+          const nowFeatured = !(ch.featured && (!ch.featuredUntil || ch.featuredUntil > Date.now()));
+          ch.featured = nowFeatured;
+          ch.featuredUntil = nowFeatured ? (Date.now() + 30*24*60*60*1000) : null;
+          await dbSave(current);
+          loadChannels().then(renderAdmin);
+        }catch(e){ alert('Xatolik yuz berdi, qayta urinib ko\'ring.'); }
+      });
+    });
+    list.querySelectorAll('.admin-del').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.key;
+        if(!confirm('Bu kanalni o\'chirmoqchimisiz?')) return;
+        try{
+          const current = await dbLoad();
+          const next = current.filter(c=>c.id!==id);
+          await dbSave(next);
+          loadChannels().then(renderAdmin);
+        }catch(e){ alert('Xatolik yuz berdi, qayta urinib ko\'ring.'); }
+      });
+    });
+  }
+
+  loadChannels();
+})();
+</script>
+</body>
+</html>
